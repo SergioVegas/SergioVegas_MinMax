@@ -18,34 +18,39 @@ public static class Calculs
     }
     public static int EvaluateWin(int[,] matrix)
     {
+        int size = matrix.GetLength(0);
         int counterX = 0;
         int counterY = 0;
         int counterD1 = 0;
         int counterD2 = 0;
-        for(int i=0; i<matrix.GetLength(0); i++)
+
+        for (int i = 0; i < size; i++)
         {
-            for (int j = 0; j < matrix.GetLength(1);j++)
+            counterX = 0;
+            counterY = 0;
+            for (int j = 0; j < size; j++)
             {
                 counterY += matrix[i, j];
                 counterX += matrix[j, i];
             }
-            if (counterY == 3 || counterX == 3) return 1;
-            else if (counterY == -3 || counterX ==-3) return -1;
-            counterX = 0;
-            counterY = 0;
+            if (counterY == size || counterX == size) return 1;
+            if (counterY == -size || counterX == -size) return -1;
+
             counterD1 += matrix[i, i];
-            counterD2 += matrix[2-i, i];
+            counterD2 += matrix[size - 1 - i, i];
         }
-        if (counterD1 == 3 || counterD2 == 3) return 1;
-        else if(counterD1 == -3 || counterD2 == 3)  return -1;
-        for(int i=0; i<matrix.GetLength(0);i++)
+
+        if (counterD1 == size || counterD2 == size) return 1;
+        if (counterD1 == -size || counterD2 == -size) return -1;
+
+        for (int i = 0; i < size; i++)
         {
-            for(int j = 0; j < matrix.GetLength(1);j++)
+            for (int j = 0; j < size; j++)
             {
                 if (matrix[i, j] == 0) return 2;
             }
         }
-        return 0; // 0 empat, 1 guanya 1, -1 guanya 2, 2 no s'ha acabat
+        return 0; // 0 empate, 1 gana jugador 1, -1 gana IA, 2 no ha terminado
     }
     public static bool CheckIfValidClick(Vector2 mousePosition, int[,] matrix)
     {
@@ -67,5 +72,89 @@ public static class Calculs
             }
         }
         return false;
+    }
+
+    public static (int, int) GetBestMove(int[,] matrix)
+    {
+        int bestScore = int.MinValue;
+        int moveX = -1;
+        int moveY = -1;
+        int size = matrix.GetLength(0);
+
+        for (int i = 0; i < size; i++)
+        {
+            for (int j = 0; j < size; j++)
+            {
+                if (matrix[i, j] == 0)
+                {
+                    matrix[i, j] = -1; 
+                    int score = Minimax(matrix, 0, false, int.MinValue, int.MaxValue);
+                    matrix[i, j] = 0; 
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        moveX = i;
+                        moveY = j;
+                    }
+                }
+            }
+        }
+        return (moveX, moveY);
+    }
+
+    private static int Minimax(int[,] matrix, int depth, bool isMaximizing, int alpha, int beta)
+    {
+        int result = EvaluateWin(matrix);
+        if (result != 2)
+        {
+            // Si la IA (-1) gana, el score es alto. Si el humano (1) gana, el score es bajo.
+            if (result == -1) return 10 - depth;
+            if (result == 1) return -10 + depth;
+            return 0;
+        }
+
+        int size = matrix.GetLength(0);
+        if (isMaximizing)
+        {
+            int bestScore = int.MinValue;
+            for (int i = 0; i < size; i++)
+            {
+                for (int j = 0; j < size; j++)
+                {
+                    if (matrix[i, j] == 0)
+                    {
+                        matrix[i, j] = -1;
+                        int score = Minimax(matrix, depth + 1, false, alpha, beta);
+                        matrix[i, j] = 0;
+                        bestScore = Mathf.Max(score, bestScore);
+                        alpha = Mathf.Max(alpha, bestScore);
+                        if (beta <= alpha) break;
+                    }
+                }
+                if (beta <= alpha) break;
+            }
+            return bestScore;
+        }
+        else
+        {
+            int bestScore = int.MaxValue;
+            for (int i = 0; i < size; i++)
+            {
+                for (int j = 0; j < size; j++)
+                {
+                    if (matrix[i, j] == 0)
+                    {
+                        matrix[i, j] = 1;
+                        int score = Minimax(matrix, depth + 1, true, alpha, beta);
+                        matrix[i, j] = 0;
+                        bestScore = Mathf.Min(score, bestScore);
+                        beta = Mathf.Min(beta, bestScore);
+                        if (beta <= alpha) break;
+                    }
+                }
+                if (beta <= alpha) break;
+            }
+            return bestScore;
+        }
     }
 }

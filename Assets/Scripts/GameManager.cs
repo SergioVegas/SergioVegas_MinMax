@@ -4,7 +4,8 @@ using UnityEngine;
 public enum States
 {
     CanMove,
-    CantMove
+    CantMove,
+    GameOver
 }
 public class GameManager : MonoBehaviour
 {
@@ -15,19 +16,29 @@ public class GameManager : MonoBehaviour
     public int[,] Matrix;
     [SerializeField] private States state = States.CanMove;
     public Camera camera;
+
+    private List<GameObject> spawnedTokens = new List<GameObject>();
+
     void Start()
     {
         Instance = this;
+        InitGame();
+    }
+
+    void InitGame()
+    {
         Matrix = new int[Size, Size];
         Calculs.CalculateDistances(collider, Size);
         for (int i = 0; i < Size; i++)
         {
             for (int j = 0; j < Size; j++)
             {
-                Matrix[i, j] = 0; // 0: desocupat, 1: fitxa jugador 1, -1: fitxa IA;
+                Matrix[i, j] = 0;
             }
         }
+        state = States.CanMove;
     }
+
     private void Update()
     {
         if (state == States.CanMove)
@@ -40,52 +51,54 @@ public class GameManager : MonoBehaviour
                 if (Calculs.CheckIfValidClick((Vector2)mousepos, Matrix))
                 {
                     state = States.CantMove;
-                    if(Calculs.EvaluateWin(Matrix)==2)
+                    int winStatus = Calculs.EvaluateWin(Matrix);
+                    if (winStatus == 2)
                         StartCoroutine(WaitingABit());
+                    else
+                        HandleEndGame(winStatus);
                 }
             }
         }
     }
+
+  
+
     private IEnumerator WaitingABit()
     {
-        yield return new WaitForSeconds(1f);
-        RandomAI();
+        yield return new WaitForSeconds(0.5f);
+        BestMoveAI();
     }
-    public void RandomAI()
+
+    public void BestMoveAI()
     {
-        int x;
-        int y;
-        do
+        (int x, int y) = Calculs.GetBestMove(Matrix);
+        if (x != -1 && y != -1)
         {
-            x = Random.Range(0, Size);
-            y = Random.Range(0, Size);
-        } while (Matrix[x, y] != 0);
-        DoMove(x, y, -1);
-        state = States.CanMove;
+            DoMove(x, y, -1);
+            int winStatus = Calculs.EvaluateWin(Matrix);
+            if (winStatus != 2)
+                HandleEndGame(winStatus);
+            else
+                state = States.CanMove;
+        }
     }
+
     public void DoMove(int x, int y, int team)
     {
         Matrix[x, y] = team;
-        if (team == 1)
-            Instantiate(token1, Calculs.CalculatePoint(x, y), Quaternion.identity);
-        else
-            Instantiate(token2, Calculs.CalculatePoint(x, y), Quaternion.identity);
-        int result = Calculs.EvaluateWin(Matrix);
+        GameObject prefab = (team == 1) ? token1 : token2;
+        GameObject token = Instantiate(prefab, Calculs.CalculatePoint(x, y), Quaternion.identity);
+        spawnedTokens.Add(token);
+    }
+
+    private void HandleEndGame(int result)
+    {
+        state = States.GameOver;
         switch (result)
         {
-            case 0:
-                Debug.Log("Draw");
-                break;
-            case 1:
-                Debug.Log("You Win");
-                break;
-            case -1:
-                Debug.Log("You Lose");
-                break;
-            case 2:
-                if(state == States.CantMove)
-                    state = States.CanMove;
-                break;
+            case 0: Debug.Log("Empate"); break;
+            case 1: Debug.Log("Has ganado!"); break;
+            case -1: Debug.Log("Te han ganado!"); break;
         }
     }
 }
